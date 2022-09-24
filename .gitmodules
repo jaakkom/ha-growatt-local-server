@@ -1,0 +1,3 @@
+[submodule "Growatt-server"]
+	path = Growatt-server
+	url = https://github.com/knowthelist/Growatt-server
