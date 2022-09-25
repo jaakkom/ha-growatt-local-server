@@ -1,0 +1,12 @@
+; DO NOT EDIT (unless you know what you are doing)
+;
+; This subdirectory is a git "subrepo", and this file is maintained by the
+; git-subrepo command. See https://github.com/git-commands/git-subrepo#readme
+;
+[subrepo]
+	remote = git@github.com:knowthelist/Growatt-server.git
+	branch = main
+	commit = 2b4e0a20d72155738806fe9285b03787dd3f796e
+	parent = 08a21a66eb58f9d020904e8b7721787e37a0f5c5
+	method = merge
+	cmdver = 0.4.3
