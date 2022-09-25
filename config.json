@@ -5,11 +5,11 @@
   "slug": "growatt_local_server",
   "init": false,
   "options": {
-    "mqtt_server": "mqtt://core-mosquitto",
+    "mqtt_server": "core-mosquitto",
     "mqtt_user": "mqtt",
     "mqtt_pass": "mqtt",
     "mqtt_client_id": "growatt",
-    "mqtt_discovery_prefix": "PV_GROWATT_",
+    "mqtt_discovery_prefix": "homeassistant",
     "server_debug": "1"
   },
   "schema": {

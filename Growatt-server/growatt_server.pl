@@ -84,7 +84,6 @@ my $mqtt_username         = $ENV{'MQTT_USER'};;
 my $mqtt_password         = $ENV{'MQTT_PASS'};;
 my $mqtt_client_id_prefix = 'PV_GROWATT_';
 my $mqtt = connect_MQTT();
-publish_MQTT_homeassistant_device_autodiscovery('test');
 ################ Deamonize ################
 
 my $continue = 1;
@@ -585,9 +584,9 @@ sub publish_MQTT_homeassistant_device_autodiscovery {
     my $config_topic = $state_topic . '_' . $entity_name . '/config';
     my $data_topic = $state_topic . '_currentData/state';
 
-    my $conf = autodiscoveryTopicConf($devId, "Solar power generated today", $entity_name, "power", "kW", $data_topic);
+    my $conf = autodiscoveryTopicConf($devId, "Solar power generated today", $entity_name, "energy", "kWh", $data_topic);
     print "Publishing MQTT autodiscovery topic ", $config_topic, " to HomeAssistant \n", $conf, "\n";
-    $mqtt->publish('nönnönnöö', $conf);
+    $mqtt->publish($config_topic, $conf);
 }
 
 sub autodiscoveryTopicConf {
@@ -598,7 +597,7 @@ sub autodiscoveryTopicConf {
         "state_topic" => $data_topic, 
         "unit_of_measurement" => $unit_of_measurement, 
         "value_template" =>"{{ value_json." . $entity_name . "}}", 
-        "unique_id" => $devId, "_", $entity_name,
+        "unique_id" => $devId . "_" . $entity_name,
     );
     return JSON::encode_json \%conf_hash;
 }
@@ -612,9 +611,9 @@ sub publish_MQTT {
 
     my $entity_name = 'Eac_today';
     my $config_topic = $state_topic . '_' . $entity_name . '/config';
-    my $data_topic = $state_topic . '_currentData/state'
+    my $data_topic = $state_topic . '_currentData/state';
 
-    $conf = JSON::json_encode $data
+    my $conf = JSON::encode_json $data;
     # Publish PV data
     print "Pushing data with topic", $data_topic, "to homeassistant mqtt:\n", $conf, "\n";
     $mqtt->publish($data_topic, $conf);
