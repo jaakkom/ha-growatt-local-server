@@ -606,18 +606,9 @@ sub autodiscoveryTopicConf {
 
 sub publish_MQTT {
     my ($data) = @_;
-    our $inverter_id = $data->{inverter};
-
-
-    # use a fix MQTT client id
-    sub _client_identifier {
-        return $mqtt_client_id_prefix . $inverter_id;
-    }
-
-
 
     my $base_topic = $ENV{'MQTT_DISCOVERY_PREFIX'} . '/sensor/';
-    my $state_topic = $base_topic . $devId;
+    my $state_topic = $base_topic . $data->{inverter};
 
     my $entity_name = 'Eac_today';
     my $config_topic = $state_topic . '_' . $entity_name . '/config';
@@ -627,14 +618,6 @@ sub publish_MQTT {
     # Publish PV data
     print "Pushing data with topic", $data_topic, "to homeassistant mqtt:\n", $conf, "\n";
     $mqtt->publish($data_topic, $conf);
-    #$mqtt->publish( "Eac_today", $data->{Eac_today} );
-    #$mqtt->publish( "Eac_total", $data->{Eac_total} );
-    #$mqtt->publish( "Ppv1",      $data->{Ppv1} );
-    #$mqtt->publish( "Ipv1",      $data->{Ipv1} );
-    #$mqtt->publish( "Vpv1",      $data->{Vpv1} );
-    #$mqtt->publish( "Vac1",      $data->{Vac1} );
-    #$mqtt->publish( "Iac1",      $data->{Iac1} );
-    #$mqtt->publish( "Pac1",      $data->{Pac1} );
 }
 
 ################ Command line options ################
