@@ -49,6 +49,7 @@ use IO::Handle;
 use Proc::Daemon;
 use POSIX qw/strftime/;
 use Time::Local;
+use JSON;
 
 use constant {
     MSG_TYPE_ANNOUNCE      => 0x03,
@@ -78,11 +79,12 @@ $timeout = 300;
 my @crc16_table = generate_crc16_table();
 
 # MQTT
-my $mqtt_server           = 'localhost:1883';
-my $mqtt_username         = '';
-my $mqtt_password         = '';
+my $mqtt_server           = $ENV{'MQTT_SERVER'};
+my $mqtt_username         = $ENV{'MQTT_USER'};;
+my $mqtt_password         = $ENV{'MQTT_PASS'};;
 my $mqtt_client_id_prefix = 'PV_GROWATT_';
-
+my $mqtt = connect_MQTT();
+publish_MQTT_homeassistant_device_autodiscovery('test');
 ################ Deamonize ################
 
 my $continue = 1;
@@ -315,6 +317,7 @@ sub process_message {
     if ( $message->{type} == MSG_TYPE_ANNOUNCE ) {
         my $request = decode_announce_request($message);
         my @reply   = ();
+        publish_MQTT_homeassistant_device_autodiscovery($request->{inverter});
         print( $ts, "\t", "== received ANNOUNCE from ",
             $request->{serial},   " for inverter ",
             $request->{inverter}, ", sending reply ==\n\n"
@@ -444,8 +447,8 @@ sub decode_data_request {
     my ( $Vpv1, $Ipv1, $Ppv1 ) = unpack( "nnN", substr( $message->{data}, 77 + $offset ) );
     my ( $Pac, $Fac ) = unpack( "Nn", substr( $data, 117 + $offset ) );
     my ( $Vac1, $Iac1, $Pac1 ) = unpack( "nnN", substr( $data, 123 + $offset ) );
-    my ( $Eac_today ) = unpack( "N", substr( $data, 169 + $offset ) );
-    my ( $Eac_total ) = unpack( "N", substr( $data, 177 + $offset ) );
+    my ( $Eac_total ) = unpack( "N", substr( $data, 169 + $offset ) );
+    my ( $Eac_today ) = unpack( "N", substr( $data, 177 + $offset ) );
 
     return {
         serial    => $serial,
@@ -550,41 +553,88 @@ sub print_pv_data {
     print "Pac1: ", $data->{Pac1}, "\n";
 }
 
+
+sub connect_MQTT {
+    package Net::MQTT::Simple::ID;
+    our @ISA         = 'Net::MQTT::Simple';
+
+    # Allow unencrypted connection with credentials
+    $ENV{MQTT_SIMPLE_ALLOW_INSECURE_LOGIN} = 1;
+
+    # Connect to server (broker)
+    print "Connection MQTT server ", $mqtt_server, "\n";
+    my $mqtt = Net::MQTT::Simple::ID->new($mqtt_server);
+
+    # Depending if authentication is required, login to the broker
+    if ( $mqtt_username and $mqtt_password ) {
+        print "Using user ", $mqtt_password, " and password ", $mqtt_password, " for MQTT server connection.\n"; 
+        $mqtt->login( $mqtt_username, $mqtt_password );
+    }
+
+    return $mqtt;
+}
+
+
+sub publish_MQTT_homeassistant_device_autodiscovery {
+    my ($devId) = @_;
+    
+    my $base_topic = $ENV{'MQTT_DISCOVERY_PREFIX'} . '/sensor/';
+    my $state_topic = $base_topic . $devId;
+
+    my $entity_name = 'Eac_today';
+    my $config_topic = $state_topic . '_' . $entity_name . '/config';
+    my $data_topic = $state_topic . '_currentData/state';
+
+    my $conf = autodiscoveryTopicConf($devId, "Solar power generated today", $entity_name, "power", "kW", $data_topic);
+    print "Publishing MQTT autodiscovery topic ", $config_topic, " to HomeAssistant \n", $conf, "\n";
+    $mqtt->publish('nönnönnöö', $conf);
+}
+
+sub autodiscoveryTopicConf {
+    my ($devId, $name, $entity_name, $device_class, $unit_of_measurement, $data_topic) = @_;
+    my %conf_hash = (
+        "device_class" => $device_class,
+        "name" => $name, 
+        "state_topic" => $data_topic, 
+        "unit_of_measurement" => $unit_of_measurement, 
+        "value_template" =>"{{ value_json." . $entity_name . "}}", 
+        "unique_id" => $devId, "_", $entity_name,
+    );
+    return JSON::encode_json \%conf_hash;
+}
+
+
 sub publish_MQTT {
     my ($data) = @_;
-
-    package Net::MQTT::Simple::ID;
-
-    our @ISA         = 'Net::MQTT::Simple';
     our $inverter_id = $data->{inverter};
+
 
     # use a fix MQTT client id
     sub _client_identifier {
         return $mqtt_client_id_prefix . $inverter_id;
     }
 
-    # Allow unencrypted connection with credentials
-    $ENV{MQTT_SIMPLE_ALLOW_INSECURE_LOGIN} = 1;
 
-    # Connect to server (broker)
-    my $mqtt = Net::MQTT::Simple::ID->new($mqtt_server);
 
-    # Depending if authentication is required, login to the broker
-    if ( $mqtt_username and $mqtt_password ) {
-        $mqtt->login( $mqtt_username, $mqtt_password );
-    }
+    my $base_topic = $ENV{'MQTT_DISCOVERY_PREFIX'} . '/sensor/';
+    my $state_topic = $base_topic . $devId;
 
+    my $entity_name = 'Eac_today';
+    my $config_topic = $state_topic . '_' . $entity_name . '/config';
+    my $data_topic = $state_topic . '_currentData/state'
+
+    $conf = JSON::json_encode $data
     # Publish PV data
-    $mqtt->publish( "Eac_today", $data->{Eac_today} );
-    $mqtt->publish( "Eac_total", $data->{Eac_total} );
-    $mqtt->publish( "Ppv1",      $data->{Ppv1} );
-    $mqtt->publish( "Ipv1",      $data->{Ipv1} );
-    $mqtt->publish( "Vpv1",      $data->{Vpv1} );
-    $mqtt->publish( "Vac1",      $data->{Vac1} );
-    $mqtt->publish( "Iac1",      $data->{Iac1} );
-    $mqtt->publish( "Pac1",      $data->{Pac1} );
-
-    $mqtt->disconnect();
+    print "Pushing data with topic", $data_topic, "to homeassistant mqtt:\n", $conf, "\n";
+    $mqtt->publish($data_topic, $conf);
+    #$mqtt->publish( "Eac_today", $data->{Eac_today} );
+    #$mqtt->publish( "Eac_total", $data->{Eac_total} );
+    #$mqtt->publish( "Ppv1",      $data->{Ppv1} );
+    #$mqtt->publish( "Ipv1",      $data->{Ipv1} );
+    #$mqtt->publish( "Vpv1",      $data->{Vpv1} );
+    #$mqtt->publish( "Vac1",      $data->{Vac1} );
+    #$mqtt->publish( "Iac1",      $data->{Iac1} );
+    #$mqtt->publish( "Pac1",      $data->{Pac1} );
 }
 
 ################ Command line options ################

@@ -10,6 +10,7 @@ RUN \
   cpanm Data::Hexify && \
   cpanm Proc::ProcessTable --force && \
   cpanm Proc::Daemon && \
+  cpanm JSON && \
   true  
   
 
