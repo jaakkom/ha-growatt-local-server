@@ -587,6 +587,15 @@ sub publish_MQTT_homeassistant_device_autodiscovery {
     my $conf = autodiscoveryTopicConf($devId, "Solar energy generated today", $entity_name, "energy", "kWh", $data_topic, "total_increasing");
     print "Publishing MQTT autodiscovery topic ", $config_topic, " to HomeAssistant \n", $conf, "\n";
     $mqtt->publish($config_topic, $conf);
+
+
+    my $entity_name = 'Ppv1';
+    my $config_topic = $state_topic . '_' . $entity_name . '/config';
+    my $data_topic = $state_topic . '_currentData/state';
+
+    my $conf = autodiscoveryTopicConf($devId, "PV1 Power", $entity_name, "power", "W", $data_topic, "measurement");
+    print "Publishing MQTT autodiscovery topic ", $config_topic, " to HomeAssistant \n", $conf, "\n";
+    $mqtt->publish($config_topic, $conf);
 }
 
 sub autodiscoveryTopicConf {
